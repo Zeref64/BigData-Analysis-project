@@ -16,6 +16,8 @@ from sklearn.model_selection import train_test_split
 pd.set_option("display.max.rows", 10)
 pd.set_option("display.max.columns", 43)
 missing_values = ["N/a", "na", np.nan] # Those are treated as 'NaN' as well
+# seen this from a video explaining data cleaning process
+
 #? To get rid of the warning that shows up
 dtype_dict = {
     '_id': int,
@@ -85,6 +87,7 @@ df.drop_duplicates(keep="first", inplace=True)
 #? Going to drop rows where Latitude and Longtitude are 0/NaN because I won't need them.
 #* Longitude = Geographical length of nearest major or minor intersection in the ward of the incident
 #* Latitude = Geographical width of the nearest major or minor intersection in the periphery of the incident
+
 df = df.dropna(subset=['Latitude', 'Longitude'])
 df = df[(df['Latitude'] != 0) & (df['Longitude'] != 0)]
 df = df[df['Possible_Cause'] != '99 - Undetermined']
@@ -97,6 +100,8 @@ for col in datetime_columns:
 
 ## 3. Using the elbow method to find the optimal 'k' ->
 #? Calculate total error for different numbers of clusters with K-Means
+
+## I found this code from e-class files under kMeans.ipynb changed it to work with my df and used it 
 err_total = []
 n_clusters = 10
 df_elbow = df[['Latitude', 'Longitude']]
@@ -160,6 +165,8 @@ plt.show()
 ## 5 Creating Dataframes based on the Location Clusters
 ### 5.1 Applying elbow method again ->
 
+# I coded this function with combination of stackoverflow, the previous kmeans implematation from eclass 
+## and used Chat GPT to help me understand why and how to use label encoder, simple imputer *correctly*! 
 def calc_elbow_method(data, datetime_columns, cause_column, max_clusters=10):
     
     data = data.copy()
@@ -204,7 +211,7 @@ elbow_north_york_df = calc_elbow_method(north_york_df, datetime_columns, 'Possib
 elbow_scarborough_df = calc_elbow_method(scarborough_df, datetime_columns, 'Possible_Cause')
 #---
 
-# Plotting the elbows
+# Plotting the elbows from forums and gpt
 fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
 fig.suptitle('Elbow Method for Optimal k')
 
@@ -226,6 +233,7 @@ plt.show()
 ###---
 
 ### 5.2 Sub-Clustering based on Timestamps ->
+## This function is pretty much the same as the above
 def perform_kmeans_clustering(data, datetime_columns, cause_column, k):
     
     data = data.copy()
@@ -257,6 +265,8 @@ scarborough_df, scarborough_centers = perform_kmeans_clustering(scarborough_df, 
 ## 6. Possible Cause of fire incidents analysis on each area by cluster ->
 
 #? This function shows what the most common Possible_Cause of fires is each area and by cluster 
+## The line `cause_counts = df.groupby('Cluster')[cause_column].value_counts().unstack().fillna(0)` caused a lot of problems to get it where I wanted,
+## in the end i used chatGPT by promting it 3-4 times to get it where i want then I changed the colors and sorted it
 
 def plot_cause_analysis(df, location_name, cause_column):
     
@@ -294,6 +304,10 @@ plot_cause_analysis(scarborough_df, 'Scarborough Toronto', 'Possible_Cause')
 ###---
 
 ## 7. Fire department response analysis for each area by cluster ->
+
+# Calculate the metrics for each fire dept
+## This is just a simple yet very effective subtraction to find those metrics
+## it creates 3 new columns
 
 # Calculate the metrics for each fire dept
 def calculate_response_metrics(df):
@@ -338,6 +352,8 @@ plot_response_time_analysis(scarborough_df, 'Scarborough')
 # 3 distinct groups (clusters), downtown_stats will have 3 rows—one for each cluster.
 
 # Calculating mean and standard deviation for ['Response_Time', 'Fire_Under_Control_Time', 'Total_Clear_Time']
+
+## I just used google to find how to cal mean and std for cols in pandas and wrote that to fit my need
 def calculate_summary_statistics(df, location_name):
     metrics = ['Response_Time', 'Fire_Under_Control_Time', 'Total_Clear_Time']
     summary_stats = df.groupby('Cluster')[metrics].agg(['mean', 'std']).reset_index()
@@ -370,7 +386,9 @@ plot_comparison_analysis(all_stats, 'Total_Clear_Time')
 ###---
 
 ## 8. Training a Random Forest Regressor to find the approximate 'safety from fire incidents' of each area 
-
+## As said in the documentation this is my first time actually trying to code an ML alg, 
+## I got the idea from a video i saw `https://www.youtube.com/watch?v=jkOtBYZ86Os`
+## Then changed for this project and used chatGPT to optimize it.
 def process_and_train_model(dataframes, locations, categorical_columns, input_columns):
     
     location_means = {}
